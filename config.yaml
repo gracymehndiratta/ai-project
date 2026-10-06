@@ -1,0 +1,78 @@
+# Federated Privacy-Preserving Skin Lesion Classifier
+project_name: "federated_skin_lesion_classifier"
+random_seed: 42
+
+# Dataset
+dataset:
+  name: "HAM10000"
+  num_classes: 7
+  image_size: 128
+  num_channels: 3
+  class_names:
+    - "akiec"    # Actinic keratoses / Bowen's disease
+    - "bcc"      # Basal cell carcinoma
+    - "bkl"      # Benign keratosis-like lesions
+    - "df"       # Dermatofibroma
+    - "mel"      # Melanoma
+    - "nv"       # Melanocytic nevi
+    - "vasc"     # Vascular lesions
+  raw_dir: "./data/raw"
+  processed_dir: "./data/processed"
+
+# Data preprocessing
+preprocessing:
+  train_augmentation: true
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+  val_test_split: [0.15, 0.15]  # train/val/test ratios from full dataset
+
+# Model
+model:
+  name: "SkinLesionCNN"
+  backbone: "custom_cnn"  # options: custom_cnn, resnet18
+  dropout: 0.3
+
+# Centralized training
+centralized:
+  epochs: 25
+  batch_size: 64
+  learning_rate: 0.001
+  weight_decay: 1.0e-4
+  patience: 7
+
+# Federated training
+federated:
+  num_clients: 5
+  num_rounds: 20
+  local_epochs: 5
+  batch_size: 32
+  learning_rate: 0.001
+  fraction_fit: 1.0
+  fraction_evaluate: 0.5
+  aggregation: "fedavg"  # fedavg or fedprox
+  fedprox_mu: 0.01
+  iid: false
+  dirichlet_alpha: 0.5  # lower = more non-IID
+
+# Differential privacy
+differential_privacy:
+  enabled: true
+  target_epsilon: 8.0
+  target_delta: 1.0e-5
+  max_grad_norm: 1.0
+  noise_multiplier: "auto"  # auto-computed or explicit float
+
+# Evaluation
+evaluation:
+  metrics: ["accuracy", "precision", "recall", "f1"]
+  average: "weighted"
+
+# Interface
+interface:
+  port: 8501
+
+# Outputs
+outputs:
+  models_dir: "./outputs/models"
+  logs_dir: "./outputs/logs"
+  plots_dir: "./outputs/plots"
