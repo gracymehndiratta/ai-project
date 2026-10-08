@@ -79,7 +79,12 @@ def train_centralized(config: dict, use_synthetic: bool = False) -> dict:
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=0)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    model = build_model(config["model"]["backbone"], num_classes=num_classes, dropout=config["model"]["dropout"])
+    model = build_model(
+        config["model"]["backbone"],
+        num_classes=num_classes,
+        dropout=config["model"]["dropout"],
+        freeze_backbone=config["model"].get("freeze_backbone", True),
+    )
     model = model.to(device)
 
     class_weights = compute_class_weights(train_set).to(device)

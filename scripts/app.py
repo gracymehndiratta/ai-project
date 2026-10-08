@@ -19,7 +19,12 @@ from src.utils.config import load_config
 def load_model(config: dict, model_path: str):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_classes = config["dataset"]["num_classes"]
-    model = build_model(config["model"]["backbone"], num_classes, dropout=config["model"]["dropout"])
+    model = build_model(
+        config["model"]["backbone"],
+        num_classes,
+        dropout=config["model"]["dropout"],
+        freeze_backbone=config["model"].get("freeze_backbone", True),
+    )
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     model.eval()

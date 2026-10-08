@@ -112,7 +112,12 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     fraction_fit = config["federated"]["fraction_fit"]
     fraction_evaluate = config["federated"]["fraction_evaluate"]
 
-    initial_model = build_model(config["model"]["backbone"], num_classes, dropout=config["model"]["dropout"])
+    initial_model = build_model(
+        config["model"]["backbone"],
+        num_classes,
+        dropout=config["model"]["dropout"],
+        freeze_backbone=config["model"].get("freeze_backbone", True),
+    )
     initial_parameters = get_initial_parameters(initial_model)
 
     round_metrics: list = []
@@ -145,7 +150,12 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     )
 
     # Build the final global model from the strategy's latest parameters
-    final_model = build_model(config["model"]["backbone"], num_classes, dropout=config["model"]["dropout"])
+    final_model = build_model(
+        config["model"]["backbone"],
+        num_classes,
+        dropout=config["model"]["dropout"],
+        freeze_backbone=config["model"].get("freeze_backbone", True),
+    )
     final_parameters = strategy.latest_parameters
     if final_parameters is None:
         raise RuntimeError("No aggregated parameters were produced during federated training.")

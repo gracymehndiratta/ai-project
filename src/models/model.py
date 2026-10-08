@@ -57,16 +57,98 @@ class SkinLesionCNN(nn.Module):
         return x
 
 
+class PretrainedBackbone(nn.Module):
+    """
+    Wrapper for pretrained torchvision backbones with optional freezing and a
+    lightweight classification head.
+    """
+
+    def __init__(
+        self,
+        backbone_name: str,
+        num_classes: int = 7,
+        dropout: float = 0.3,
+        freeze_backbone: bool = True,
+    ) -> None:
+        super().__init__()
+        self.freeze_backbone = freeze_backbone
+        self.backbone = self._build_backbone(backbone_name)
+        self.in_features = self._get_in_features(backbone_name)
+
+        # Replace BatchNorm with GroupNorm for DP compatibility
+        self.backbone = self._replace_bn_with_gn(self.backbone)
+
+        if freeze_backbone:
+            self._freeze_backbone()
+
+        self.classifier = nn.Sequential(
+            nn.Flatten() if self.in_features > 1 else nn.Identity(),
+            nn.Dropout(dropout),
+            nn.Linear(self.in_features, num_classes),
+        )
+
+    def _build_backbone(self, name: str) -> nn.Module:
+        name = name.lower()
+        if name in ("resnet18", "resnet"):
+            model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+            model.fc = nn.Identity()
+            return model
+        if name in ("efficientnet_b0", "efficientnet"):
+            model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
+            model.classifier = nn.Identity()
+            return model
+        if name in ("mobilenet_v2", "mobilenet"):
+            model = models.mobilenet_v2(weights=models.MobileNet_V2_Weights.DEFAULT)
+            model.classifier = nn.Identity()
+            return model
+        raise ValueError(f"Unknown pretrained backbone: {name}")
+
+    def _get_in_features(self, name: str) -> int:
+        name = name.lower()
+        if name in ("resnet18", "resnet"):
+            return 512
+        if name in ("efficientnet_b0", "efficientnet"):
+            return 1280
+        if name in ("mobilenet_v2", "mobilenet"):
+            return 1280
+        raise ValueError(f"Unknown pretrained backbone: {name}")
+
+    def _replace_bn_with_gn(self, module: nn.Module, max_groups: int = 32) -> nn.Module:
+        for name, child in module.named_children():
+            if isinstance(child, nn.BatchNorm2d):
+                groups = self._valid_group_count(child.num_features, max_groups)
+                setattr(module, name, nn.GroupNorm(num_groups=groups, num_channels=child.num_features))
+            else:
+                self._replace_bn_with_gn(child, max_groups)
+        return module
+
+    def _valid_group_count(self, channels: int, max_groups: int = 32) -> int:
+        """Find the largest number of groups that divides channels evenly."""
+        for groups in range(min(max_groups, channels), 0, -1):
+            if channels % groups == 0:
+                return groups
+        return 1
+
+    def _freeze_backbone(self) -> None:
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        features = self.backbone(x)
+        return self.classifier(features)
+
+
 class ResNet18Backbone(nn.Module):
     """ResNet18 adapted with GroupNorm for differential-privacy compatibility."""
 
-    def __init__(self, num_classes: int = 7, dropout: float = 0.3) -> None:
+    def __init__(self, num_classes: int = 7, dropout: float = 0.3, freeze_backbone: bool = True) -> None:
         super().__init__()
-        # Use a GroupNorm variant of ResNet18
         self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-
-        # Replace BatchNorm layers with GroupNorm
         self.model = self._replace_bn_with_gn(self.model)
+
+        if freeze_backbone:
+            for param in self.model.parameters():
+                param.requires_grad = False
 
         in_features = self.model.fc.in_features
         self.model.fc = nn.Sequential(
@@ -74,23 +156,47 @@ class ResNet18Backbone(nn.Module):
             nn.Linear(in_features, num_classes),
         )
 
-    def _replace_bn_with_gn(self, module: nn.Module, num_groups: int = 32) -> nn.Module:
+    def _replace_bn_with_gn(self, module: nn.Module, max_groups: int = 32) -> nn.Module:
         for name, child in module.named_children():
             if isinstance(child, nn.BatchNorm2d):
-                num_groups = min(num_groups, child.num_features)
-                setattr(module, name, nn.GroupNorm(num_groups=num_groups, num_channels=child.num_features))
+                groups = self._valid_group_count(child.num_features, max_groups)
+                setattr(module, name, nn.GroupNorm(num_groups=groups, num_channels=child.num_features))
             else:
-                self._replace_bn_with_gn(child, num_groups)
+                self._replace_bn_with_gn(child, max_groups)
         return module
+
+    def _valid_group_count(self, channels: int, max_groups: int = 32) -> int:
+        """Find the largest number of groups that divides channels evenly."""
+        for groups in range(min(max_groups, channels), 0, -1):
+            if channels % groups == 0:
+                return groups
+        return 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
 
-def build_model(model_name: str, num_classes: int, dropout: float = 0.3) -> nn.Module:
+def build_model(
+    model_name: str,
+    num_classes: int,
+    dropout: float = 0.3,
+    freeze_backbone: bool = True,
+) -> nn.Module:
     """Factory function to build the requested model."""
-    if model_name.lower() in ("custom_cnn", "skincnn", "skinlesioncnn"):
+    name = model_name.lower()
+
+    if name in ("custom_cnn", "skincnn", "skinlesioncnn"):
         return SkinLesionCNN(num_classes=num_classes, dropout=dropout)
-    if model_name.lower() in ("resnet18", "resnet"):
-        return ResNet18Backbone(num_classes=num_classes, dropout=dropout)
+
+    if name in ("resnet18", "resnet"):
+        return ResNet18Backbone(num_classes=num_classes, dropout=dropout, freeze_backbone=freeze_backbone)
+
+    if name in ("efficientnet_b0", "efficientnet", "mobilenet_v2", "mobilenet"):
+        return PretrainedBackbone(
+            backbone_name=name,
+            num_classes=num_classes,
+            dropout=dropout,
+            freeze_backbone=freeze_backbone,
+        )
+
     raise ValueError(f"Unknown model name: {model_name}")

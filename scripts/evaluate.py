@@ -61,7 +61,12 @@ def evaluate_saved_model(
     )
     loader = DataLoader(dataset, batch_size=config["centralized"]["batch_size"], shuffle=False, num_workers=0)
 
-    model = build_model(config["model"]["backbone"], num_classes, dropout=config["model"]["dropout"])
+    model = build_model(
+        config["model"]["backbone"],
+        num_classes,
+        dropout=config["model"]["dropout"],
+        freeze_backbone=config["model"].get("freeze_backbone", True),
+    )
     model.load_state_dict(torch.load(model_path, map_location=device))
     model = model.to(device)
 

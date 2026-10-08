@@ -20,6 +20,8 @@ Skin-lesion classifiers often need large, diverse datasets, but patient data can
 
 **Dataset**: [HAM10000](https://doi.org/10.7910/DVN/DBW86T) (10,015 images, 7 classes)
 
+**Transfer learning**: The default backbone is **EfficientNet-B0** pretrained on ImageNet with a frozen backbone. Only a lightweight classification head is trained. Other supported backbones: `resnet18`, `mobilenet_v2`, `custom_cnn`.
+
 ---
 
 ## 🗂️ Project Structure
@@ -56,6 +58,11 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+> **macOS SSL note**: If you see `SSL: CERTIFICATE_VERIFY_FAILED` when downloading pretrained weights, run:
+> ```bash
+> export SSL_CERT_FILE=$(python -c "import certifi; print(certifi.where())")
+> ```
+
 ### 2. Prepare data
 
 Option A — use the real HAM10000 dataset:
@@ -81,6 +88,8 @@ For a quick synthetic test:
 ```bash
 python scripts/train_centralized.py --synthetic
 ```
+
+> **CPU performance note**: 224×224 EfficientNet-B0 is slow on CPU. For quick smoke tests, reduce `batch_size` and `epochs` in `config.yaml`, or use `mobilenet_v2`.
 
 ### 4. Train federated model
 
@@ -125,7 +134,7 @@ streamlit run scripts/app.py
 All hyperparameters live in `config.yaml`. Key sections:
 
 - `dataset` — image size, class names, paths
-- `model` — backbone (`custom_cnn` or `resnet18`), dropout
+- `model` — backbone (`custom_cnn`, `resnet18`, `efficientnet_b0`, `mobilenet_v2`), `freeze_backbone`, dropout
 - `centralized` — epochs, batch size, learning rate
 - `federated` — number of clients/rounds, IID vs Dirichlet, FedProx mu
 - `differential_privacy` — enable DP, epsilon/delta targets, max grad norm

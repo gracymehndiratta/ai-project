@@ -6,7 +6,7 @@ random_seed: 42
 dataset:
   name: "HAM10000"
   num_classes: 7
-  image_size: 128
+  image_size: 224
   num_channels: 3
   class_names:
     - "akiec"    # Actinic keratoses / Bowen's disease
@@ -29,7 +29,8 @@ preprocessing:
 # Model
 model:
   name: "SkinLesionCNN"
-  backbone: "custom_cnn"  # options: custom_cnn, resnet18
+  backbone: "efficientnet_b0"  # options: custom_cnn, resnet18, efficientnet_b0, mobilenet_v2
+  freeze_backbone: true
   dropout: 0.3
 
 # Centralized training

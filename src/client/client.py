@@ -57,7 +57,12 @@ class SkinLesionClient(fl.client.NumPyClient):
         _, self.eval_transform = build_transforms(self.image_size, augment=False)
         self.val_dataset.dataset.transform = self.eval_transform
 
-        self.model = build_model(self.backbone, self.num_classes, self.dropout)
+        self.model = build_model(
+            self.backbone,
+            self.num_classes,
+            dropout=self.dropout,
+            freeze_backbone=config["model"].get("freeze_backbone", True),
+        )
         self.model = self.model.to(self.device)
 
         if self.dp_enabled:
