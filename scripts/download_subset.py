@@ -1,8 +1,3 @@
-"""
-Download a subset of HAM10000 due to limited disk space.
-
-Downloads only HAM10000_images_part_1.zip and extracts a subset of images.
-"""
 
 from __future__ import annotations
 
