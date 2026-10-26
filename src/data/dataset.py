@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import random
 from collections import Counter
+from copy import copy
 from pathlib import Path
 from typing import Callable, Optional, Tuple
 
@@ -80,34 +81,61 @@ def split_dataset(
     test_ratio: float = 0.15,
     stratify: bool = True,
     seed: int = 42,
+    eval_transform: Optional[Callable] = None,
 ) -> Tuple[Subset, Subset, Subset]:
-    """Split a dataset into train/val/test subsets."""
+    """Stratify lesions when available, with independent transform state per split.
+
+    Ratios apply to lesions rather than images when lesion_id is present.
+    Datasets without group metadata (including synthetic images) split by row.
+    """
+    if val_ratio < 0 or test_ratio < 0 or val_ratio + test_ratio >= 1:
+        raise ValueError("Validation/test ratios must be nonnegative and sum to less than one")
     n = len(dataset)
     indices = np.arange(n)
-
+    units = indices
     labels = None
-    if stratify and hasattr(dataset, "df") and dataset.label_col in dataset.df.columns:
-        labels = dataset.df[dataset.label_col].map(dataset.class_to_idx).values
+    groups = None
+    if hasattr(dataset, "df"):
+        frame = dataset.df
+        if "lesion_id" in frame:
+            if frame.lesion_id.isna().any() or frame.lesion_id.astype(str).str.strip().eq("").any():
+                raise ValueError("Lesion IDs must be complete; refusing an image-level fallback")
+            if frame.groupby("lesion_id")[dataset.label_col].nunique().gt(1).any():
+                raise ValueError("A lesion has inconsistent diagnostic labels")
+            groups = frame.drop_duplicates("lesion_id")
+            units = np.arange(len(groups))
+            if stratify:
+                labels = groups[dataset.label_col].to_numpy()
+        elif stratify:
+            labels = frame[dataset.label_col].to_numpy()
 
-    train_idx, temp_idx = train_test_split(
-        indices,
-        test_size=val_ratio + test_ratio,
-        random_state=seed,
-        stratify=labels[indices] if labels is not None else None,
-    )
+    empty = np.array([], dtype=int)
+    if val_ratio + test_ratio == 0:
+        train_idx, val_idx, test_idx = units, empty, empty
+    else:
+        train_idx, temp_idx = train_test_split(
+            units, test_size=val_ratio + test_ratio, random_state=seed,
+            stratify=labels if labels is not None else None,
+        )
+        if val_ratio == 0:
+            val_idx, test_idx = empty, temp_idx
+        elif test_ratio == 0:
+            val_idx, test_idx = temp_idx, empty
+        else:
+            val_idx, test_idx = train_test_split(
+                temp_idx, test_size=test_ratio / (val_ratio + test_ratio), random_state=seed,
+                stratify=labels[temp_idx] if labels is not None else None,
+            )
 
-    if val_ratio == 0:
-        return Subset(dataset, train_idx), Subset(dataset, temp_idx), Subset(dataset, [])
-
-    test_size = test_ratio / (val_ratio + test_ratio)
-    val_idx, test_idx = train_test_split(
-        temp_idx,
-        test_size=test_size,
-        random_state=seed,
-        stratify=labels[temp_idx] if labels is not None else None,
-    )
-
-    return Subset(dataset, train_idx), Subset(dataset, val_idx), Subset(dataset, test_idx)
+    datasets = [copy(dataset) for _ in range(3)]
+    if eval_transform is not None:
+        datasets[1].transform = eval_transform
+        datasets[2].transform = eval_transform
+    selections = [train_idx, val_idx, test_idx]
+    if groups is not None:
+        selections = [np.flatnonzero(frame.lesion_id.isin(groups.iloc[selected].lesion_id))
+                      for selected in selections]
+    return tuple(Subset(part, selected.tolist()) for part, selected in zip(datasets, selections))
 
 
 def partition_data_iid(dataset: Dataset, num_clients: int, seed: int = 42) -> list:
@@ -146,12 +174,11 @@ def partition_data_dirichlet(
         all_labels = base_dataset.df[base_dataset.label_col].map(base_dataset.class_to_idx).values
         labels = all_labels[available_indices]
     else:
-        labels = np.array([dataset[int(i)][1] for i in available_indices])
+        labels = np.array([base_dataset[int(i)][1] for i in available_indices])
 
-    n_classes = len(np.unique(labels))
     client_indices = [[] for _ in range(num_clients)]
 
-    for cls in range(n_classes):
+    for cls in np.unique(labels):
         cls_positions = np.where(labels == cls)[0]
         cls_indices = available_indices[cls_positions]
         rng.shuffle(cls_indices)

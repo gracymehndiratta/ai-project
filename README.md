@@ -4,6 +4,8 @@ A multi-institutional deep-learning prototype for dermoscopic image classificati
 
 > ⚠️ **Academic prototype only** — not intended for clinical diagnosis.
 
+New to the project? Start with the [non-technical teammate learning guide](TEAM_LEARNING_GUIDE.md) for the workflows, experiment families, and how to read results.
+
 ---
 
 ## 📋 Overview
@@ -145,7 +147,15 @@ All hyperparameters live in `config.yaml`. Key sections:
 
 - Raw images remain on each simulated client; only model parameters are shared.
 - Differential Privacy is optional and adds noise to local gradients. Expect an accuracy/privacy trade-off.
+- With `noise_multiplier: auto`, noise is calibrated for all configured rounds and local epochs. Each client's RDP accountant persists in Flower's per-run node state, and reported epsilon accumulates across its training rounds. An explicit positive noise multiplier is used as supplied; its resulting epsilon is measured rather than forced to `target_epsilon`.
+- DP mode uses an unweighted per-example loss and sends privacy-accounting metadata instead of raw training loss/accuracy. The accounting covers training-image updates; validation/test statistics are separate evaluations. It does not establish a patient-level privacy guarantee.
 - This is a research prototype; real-world medical deployment requires additional legal, security and clinical safeguards.
+
+Real-image CNN and federated training require `lesion_id` metadata and split by lesion, so related images remain together. Rerun data preparation if an older processed CSV has only image IDs and labels. Each split has independent transform state: training keeps its configured augmentation and validation/test use deterministic preprocessing. Synthetic data splits by image.
+
+`aggregation: fedavg` uses no proximal penalty. Choose `fedprox` to apply `fedprox_mu`, including when DP is enabled. The custom CNN accepts the configured 224-pixel input while preserving its original 128-pixel checkpoint layout.
+
+The corrections apply to future training. Historical CNN/federated checkpoints and metrics retain the behavior of the code that produced them. Flower 1.40 or newer is required for the client-state API used here.
 
 ---
 
@@ -190,3 +200,22 @@ If you use HAM10000, please cite:
 ## 📄 License
 
 This project is released for academic and educational use. The HAM10000 dataset has its own license terms at the Harvard Dataverse repository.
+
+## Local full-dataset classifier comparison
+
+See [TRAINING.md](TRAINING.md) for the full ISIC download and frozen-feature pipeline.
+Run `train-all.cmd` on Windows to extract EfficientNet-B0 features once and train
+a linear baseline, a neural network, and XGBoost on the same lesion-separated splits.
+
+For the improved multi-view, validation-tuned comparison, run
+`.venv\Scripts\python.exe scripts/train_improved.py`. EfficientNet stays frozen;
+all images and the original splits are retained. The three new checkpoints appear
+as **Tuned multi-view** choices in the local Streamlit app. Run
+`scripts/report_improved.py` with the same interpreter after training to generate
+the full comparison and uncertainty report.
+
+Run `train-specialists.cmd` to compare seven independently selected and calibrated
+lesion classifiers. It reuses frozen image features, tunes neural smoothing per
+lesion on training folds, and saves both binary-specialist and combined seven-class
+statistics alongside every historical baseline. Results are written to
+`outputs/feature_models/efficientnet_b0_specialists/REPORT.md`.

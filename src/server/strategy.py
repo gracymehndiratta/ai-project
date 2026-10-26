@@ -59,6 +59,8 @@ class FedAvgWithLogging(fl.server.strategy.FedAvg):
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         """Aggregate fit results and log metrics."""
+        if not results or (failures and not self.accept_failures):
+            raise RuntimeError("Federated round failed; refusing to save an incomplete global model")
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
 
         if aggregated_parameters is not None:

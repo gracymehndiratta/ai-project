@@ -44,7 +44,7 @@ def load_data_for_simulation(config: dict, use_synthetic: bool = False):
     if use_synthetic:
         csv_path = create_synthetic_dataset(
             output_dir=config["dataset"]["processed_dir"],
-            num_samples=2000,
+            num_samples=config["dataset"].get("synthetic_samples", 2000),
             image_size=img_size,
             num_classes=num_classes,
             seed=config["random_seed"],
@@ -60,12 +60,15 @@ def load_data_for_simulation(config: dict, use_synthetic: bool = False):
         transform=train_transform,
         label_col="label",
     )
+    if not use_synthetic and "lesion_id" not in full_dataset.df:
+        raise ValueError("Real-image training requires lesion_id metadata; rerun data preparation")
 
     train_set, val_set, test_set = split_dataset(
         full_dataset,
         val_ratio=config["preprocessing"]["val_test_split"][0],
         test_ratio=config["preprocessing"]["val_test_split"][1],
         seed=config["random_seed"],
+        eval_transform=eval_transform,
     )
 
     # For FL, we partition only the training set across clients.
@@ -133,6 +136,7 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
         min_evaluate_clients=max(1, int(num_clients * fraction_evaluate)),
         min_available_clients=num_clients,
         initial_parameters=initial_parameters,
+        accept_failures=False,
         fit_metrics_aggregation_fn=weighted_average,
         evaluate_metrics_aggregation_fn=weighted_average,
         log_callback=log_callback,
@@ -175,8 +179,6 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     torch.save(final_model.state_dict(), out_dir / "federated_global_best.pt")
 
     # Evaluate on global test set
-    _, eval_transform = build_transforms(config["dataset"]["image_size"], augment=False)
-    test_set.dataset.transform = eval_transform
     test_loader = DataLoader(test_set, batch_size=config["federated"]["batch_size"], shuffle=False, num_workers=0)
     criterion = torch.nn.CrossEntropyLoss()
     test_loss, test_acc = evaluate(final_model, test_loader, criterion, device)
@@ -199,6 +201,10 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     metrics = compute_metrics(all_labels, all_preds, class_names=class_names)
     metrics["test_loss"] = test_loss
     metrics["test_accuracy"] = test_acc
+    if config["differential_privacy"]["enabled"]:
+        metrics["privacy_epsilon"] = max(row["max_epsilon"] for row in round_metrics)
+        metrics["privacy_delta"] = config["differential_privacy"]["target_delta"]
+        metrics["privacy_accountant"] = "rdp"
     print("Federated test metrics:", metrics)
     print_classification_report(all_labels, all_preds, class_names)
 
@@ -216,13 +222,12 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     )
 
     if round_metrics:
-        train_acc_history = {r["round"]: r.get("train_accuracy", 0.0) for r in round_metrics}
-        val_acc_history = {r["round"]: r.get("val_accuracy", 0.0) for r in round_metrics}
-        plot_metric_history(
-            {"Train Accuracy": list(train_acc_history.values()), "Val Accuracy": list(val_acc_history.values())},
-            output_path=str(plot_dir / "federated_accuracy_history.png"),
-            title="Federated Accuracy per Round",
-        )
+        if not config["differential_privacy"]["enabled"]:
+            plot_metric_history(
+                {"Train Accuracy": [row["train_accuracy"] for row in round_metrics]},
+                output_path=str(plot_dir / "federated_accuracy_history.png"),
+                title="Federated Training Accuracy per Round",
+            )
 
     return metrics
 

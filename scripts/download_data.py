@@ -53,7 +53,7 @@ Expected structure:
 
 
 def prepare_metadata(raw_dir: Path, processed_dir: Path) -> None:
-    """Copy metadata to processed dir, keeping only image_id and dx (label)."""
+    """Preserve lesion IDs so related images stay together during splitting."""
     import pandas as pd
 
     raw_csv = raw_dir / "HAM10000_metadata.csv"
@@ -61,7 +61,7 @@ def prepare_metadata(raw_dir: Path, processed_dir: Path) -> None:
 
     df = pd.read_csv(raw_csv)
     # HAM10000 uses 'dx' as the diagnostic label and 'image_id' as the image name.
-    df = df[["image_id", "dx"]].rename(columns={"dx": "label"})
+    df = df[["image_id", "dx", "lesion_id"]].rename(columns={"dx": "label"})
     df.to_csv(out_csv, index=False)
     print(f"Prepared metadata: {out_csv}")
 

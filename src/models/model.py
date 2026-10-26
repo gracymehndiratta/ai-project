@@ -28,7 +28,7 @@ class GroupNormBlock(nn.Module):
 
 
 class SkinLesionCNN(nn.Module):
-    """Lightweight CNN for HAM10000 (128x128 inputs)."""
+    """Lightweight CNN accepting resized images while retaining 128px checkpoints."""
 
     def __init__(
         self,
@@ -43,6 +43,7 @@ class SkinLesionCNN(nn.Module):
             GroupNormBlock(64, 128),
             GroupNormBlock(128, 256),
         )
+        self.pool = nn.AdaptiveAvgPool2d((8, 8))
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(256 * 8 * 8, 256),
@@ -53,6 +54,7 @@ class SkinLesionCNN(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.features(x)
+        x = self.pool(x)
         x = self.classifier(x)
         return x
 

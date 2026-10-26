@@ -46,7 +46,7 @@ def train_centralized(config: dict, use_synthetic: bool = False) -> dict:
         print("Generating synthetic dataset for quick test...")
         csv_path = create_synthetic_dataset(
             output_dir=config["dataset"]["processed_dir"],
-            num_samples=1000,
+            num_samples=config["dataset"].get("synthetic_samples", 1000),
             image_size=img_size,
             num_classes=num_classes,
             seed=config["random_seed"],
@@ -62,16 +62,16 @@ def train_centralized(config: dict, use_synthetic: bool = False) -> dict:
         transform=train_transform,
         label_col="label",
     )
+    if not use_synthetic and "lesion_id" not in full_dataset.df:
+        raise ValueError("Real-image training requires lesion_id metadata; rerun data preparation")
 
     train_set, val_set, test_set = split_dataset(
         full_dataset,
         val_ratio=config["preprocessing"]["val_test_split"][0],
         test_ratio=config["preprocessing"]["val_test_split"][1],
         seed=config["random_seed"],
+        eval_transform=eval_transform,
     )
-
-    val_set.dataset.transform = eval_transform
-    test_set.dataset.transform = eval_transform
 
     print(f"Train: {len(train_set)} | Val: {len(val_set)} | Test: {len(test_set)}")
 
@@ -87,7 +87,7 @@ def train_centralized(config: dict, use_synthetic: bool = False) -> dict:
     )
     model = model.to(device)
 
-    class_weights = compute_class_weights(train_set).to(device)
+    class_weights = compute_class_weights(train_set, num_classes).to(device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=patience // 2)

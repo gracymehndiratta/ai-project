@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def compute_class_weights(dataset) -> torch.Tensor:
+def compute_class_weights(dataset, num_classes: Optional[int] = None) -> torch.Tensor:
     """Compute inverse-frequency class weights from a dataset or subset."""
     if isinstance(dataset, torch.utils.data.Subset):
         labels = [dataset.dataset[idx][1] for idx in dataset.indices]
@@ -20,7 +20,7 @@ def compute_class_weights(dataset) -> torch.Tensor:
     else:
         labels = [dataset[i][1] for i in range(len(dataset))]
 
-    counts = np.bincount(labels)
+    counts = np.bincount(labels, minlength=num_classes or 0)
     weights = 1.0 / (counts + 1e-6)
     weights = weights / weights.sum() * len(weights)
     return torch.tensor(weights, dtype=torch.float32)

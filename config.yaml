@@ -50,18 +50,18 @@ federated:
   learning_rate: 0.001
   fraction_fit: 1.0
   fraction_evaluate: 0.5
-  aggregation: "fedavg"  # fedavg or fedprox
-  fedprox_mu: 0.01
+  aggregation: "fedavg"  # fedavg disables the proximal penalty; fedprox enables it
+  fedprox_mu: 0.01       # used only for fedprox
   iid: false
   dirichlet_alpha: 0.5  # lower = more non-IID
 
 # Differential privacy
 differential_privacy:
   enabled: true
-  target_epsilon: 8.0
+  target_epsilon: 8.0    # per-client budget across all rounds when noise is auto
   target_delta: 1.0e-5
   max_grad_norm: 1.0
-  noise_multiplier: "auto"  # auto-computed or explicit float
+  noise_multiplier: "auto"  # full-run calibration, or an explicit positive multiplier
 
 # Evaluation
 evaluation:

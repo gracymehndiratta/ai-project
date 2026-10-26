@@ -16,6 +16,7 @@ env/
 # Data and outputs
 data/raw/
 data/processed/
+data/features/
 outputs/
 artifacts/
 *.pt
