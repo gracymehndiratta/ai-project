@@ -1,0 +1,193 @@
+[
+  {
+    "id": "panderm2025",
+    "short_name": "Yan et al. · PanDerm",
+    "year": 2025,
+    "title": "A multimodal vision foundation model for clinical dermatology",
+    "url": "https://www.nature.com/articles/s41591-025-03747-y",
+    "result_source": "Supplementary Table 4, HAM10000 row",
+    "result_url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41591-025-03747-y/MediaObjects/41591_2025_3747_MOESM1_ESM.pdf",
+    "cohort": "HAM10000 paper benchmark; authors’ stated split differs from released CSV",
+    "metrics": {
+      "weighted_f1": 92.6,
+      "balanced_accuracy": 80.7,
+      "macro_roc_auc": 98.8,
+      "aupr": 95.9
+    },
+    "f1_definition": "Weighted F1; macro F1 and F0.5 not provided in cited table",
+    "finding": "A dermatology foundation encoder with a trained linear probe supports strong transfer.",
+    "caveat": "Published benchmark is not our official 1,512-image test. Our local authors-recipe run is a separate reproduction, not this published number.",
+    "per_class": {},
+    "per_class_note": "The cited HAM table reports aggregate metrics; seven-class F1 values are not transcribed.",
+    "verified_date": "2026-10-28"
+  },
+  {
+    "id": "mahbod2020",
+    "short_name": "Mahbod et al. · MSM-CNN",
+    "year": 2020,
+    "title": "Transfer learning using a multi-scale and multi-network ensemble for skin lesion classification",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/32268255/",
+    "result_source": "Original article abstract, Results; DOI 10.1016/j.cmpb.2020.105475",
+    "cohort": "Official ISIC 2018 Task 3 challenge test, seven classes",
+    "metrics": {
+      "balanced_accuracy": 86.2
+    },
+    "f1_definition": "F1 and F0.5 not reported in the cited primary-source abstract",
+    "finding": "Combining cropped images at six scales and three CNN architectures improved classification over single-network or single-scale alternatives.",
+    "caveat": "86.2% is balanced accuracy, not ordinary accuracy or F1. Same challenge cohort name does not imply matched training data or preprocessing.",
+    "per_class": {},
+    "per_class_note": "The cited abstract does not provide seven-class scores.",
+    "verified_date": "2026-10-28"
+  },
+  {
+    "id": "wang2023",
+    "short_name": "Wang et al. · Multiscale fusion",
+    "year": 2023,
+    "title": "Multiscale Feature Fusion for Skin Lesion Classification",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9836789/",
+    "result_source": "Tables 1 and 4–5; DOI 10.1155/2023/5146543",
+    "cohort": "Authors’ HAM10000 70/20/10 split; test n=1,998",
+    "metrics": {
+      "accuracy": 91.24,
+      "other_f1": 88.91
+    },
+    "f1_definition": "Aggregate F1 in Table 4; averaging is not sufficiently specified to label it macro or weighted",
+    "finding": "DenseNet-121 and an altered VGG-16 fuse multi-scale features; augmentation is applied to training classes.",
+    "caveat": "Different internal images and preprocessing from our splits. The paper’s macroaverage terminology is ambiguous; 95% is not relabelled as macro F1.",
+    "per_class": {},
+    "per_class_note": "Aggregate tables are used; no numerical class-F1 table is available in the cited sections.",
+    "verified_date": "2026-10-28"
+  },
+  {
+    "id": "hossain2024",
+    "short_name": "Hossain et al. · Max-voting ensemble",
+    "year": 2024,
+    "title": "Combining State-of-the-Art Pre-Trained Deep Learning Models: A Noble Approach for Skin Cancer Detection Using Max Voting Ensemble",
+    "url": "https://www.mdpi.com/2075-4418/14/1/89",
+    "result_url": "https://u-aizu.ac.jp/~jblake/pdfs/papers/hossain2024combining.pdf",
+    "result_source": "HAM10000 Table 11, PDF page 27; Diagnostics 14, 89, DOI 10.3390/diagnostics14010089",
+    "cohort": "Authors’ oversampled HAM10000 evaluation; Table 11 support n=11,734",
+    "metrics": {
+      "accuracy": 95.0,
+      "macro_f1": 95.0,
+      "weighted_f1": 95.0
+    },
+    "f1_definition": "Macro and weighted F1 reported rounded to 0.95 in Table 11",
+    "finding": "A max-voting ensemble combines ten pretrained CNN architectures.",
+    "caveat": "Section 4.1 describes oversampling then an 80/10/10 split. The nearly balanced Table 11 support exceeds original HAM10000 size; these are not comparable natural-prevalence held-out images. Values are published claims, not independently reproduced.",
+    "per_class": {
+      "akiec": {
+        "precision": 98,
+        "recall": 98,
+        "f1-score": 98,
+        "support": 1667
+      },
+      "bcc": {
+        "precision": 96,
+        "recall": 98,
+        "f1-score": 97,
+        "support": 1689
+      },
+      "bkl": {
+        "precision": 94,
+        "recall": 94,
+        "f1-score": 94,
+        "support": 1651
+      },
+      "df": {
+        "precision": 99,
+        "recall": 98,
+        "f1-score": 99,
+        "support": 1629
+      },
+      "nv": {
+        "precision": 89,
+        "recall": 82,
+        "f1-score": 85,
+        "support": 1663
+      },
+      "vasc": {
+        "precision": 94,
+        "recall": 98,
+        "f1-score": 96,
+        "support": 1680
+      },
+      "mel": {
+        "precision": 92,
+        "recall": 95,
+        "f1-score": 94,
+        "support": 1755
+      }
+    },
+    "per_class_note": "Rounded published Table 11 values, on the authors’ oversampled cohort. F0.5 not reported; not inferred from rounded inputs.",
+    "verified_date": "2026-10-28"
+  },
+  {
+    "id": "musthafa2024",
+    "short_name": "Musthafa et al. · Optimized CNN",
+    "year": 2024,
+    "title": "Enhanced skin cancer diagnosis using optimized CNN architecture and checkpoints for automated dermatological lesion classification",
+    "url": "https://link.springer.com/article/10.1186/s12880-024-01356-8",
+    "result_source": "Narrative Results (97.858%); publisher Figure 8 (76% accuracy, 48% macro F1), shown separately",
+    "cohort": "Authors’ internal HAM10000 evaluation; split not matched to ours",
+    "metrics": {
+      "accuracy": 97.858
+    },
+    "f1_definition": "Narrative claim and Figure 8 conflict; separate result rows are shown.",
+    "finding": "The CNN uses augmentation, regularization, early stopping and model checkpoints.",
+    "caveat": "Internal discrepancy: narrative reports 97.858% accuracy, but Figure 8 shows 76% accuracy, 48% macro F1 and 76% weighted F1. The cohort relationship is not explained; results are not merged or treated as independently verified.",
+    "per_class": {
+      "nv": {
+        "precision": 88,
+        "recall": 91,
+        "f1-score": 89
+      },
+      "mel": {
+        "precision": 46,
+        "recall": 46,
+        "f1-score": 46
+      },
+      "bkl": {
+        "precision": 53,
+        "recall": 41,
+        "f1-score": 46
+      },
+      "bcc": {
+        "precision": 43,
+        "recall": 61,
+        "f1-score": 50
+      },
+      "akiec": {
+        "precision": 53,
+        "recall": 31,
+        "f1-score": 39
+      },
+      "vasc": {
+        "precision": 62,
+        "recall": 54,
+        "f1-score": 58
+      },
+      "df": {
+        "precision": 100,
+        "recall": 5,
+        "f1-score": 10
+      }
+    },
+    "per_class_note": "Figure 8 values visually transcribed from the publisher on 2026-10-28. They belong to the figure, not to the 97.858% narrative claim. F0.5 and support are not reported.",
+    "verified_date": "2026-10-28",
+    "result_url": "https://link.springer.com/article/10.1186/s12880-024-01356-8/figures/8",
+    "per_class_cohort": "Figure 8 classification report; cohort not specified; inconsistent with narrative accuracy claim",
+    "additional_results": [
+      {
+        "label": "Figure 8 (conflicts with narrative)",
+        "cohort": "Figure 8, unspecified cohort; not our held-out sets",
+        "metrics": {
+          "accuracy": 76.0,
+          "macro_f1": 48.0,
+          "weighted_f1": 76.0
+        },
+        "f1_definition": "Rounded Figure 8 macro/weighted averages"
+      }
+    ]
+  }
+]

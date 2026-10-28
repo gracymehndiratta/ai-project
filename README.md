@@ -8,6 +8,16 @@ New to the project? Start with the [non-technical teammate learning guide](TEAM_
 
 ---
 
+## Local research dashboard (PanDerm experiments)
+
+Run `.venv\Scripts\python.exe -m streamlit run scripts/app.py --server.address 127.0.0.1 --server.port 8501` and open http://127.0.0.1:8501. The current dashboard compares six preserved/adapted PanDerm heads (maximum two nonlinear neural heads), locally measured PanDerm author-recipe reference results, and five linked paper studies. Both former test cohorts were used to adapt our copies; their results are labelled fitting metrics. Original checkpoints are selectable. Other papers without verified trained checkpoints have no local scores.
+
+The image-checker dropdown lists all saved seven-class predictors, including EfficientNet, PanDerm, XGBoost, specialist ensembles, and adapted checkpoints. Options are sorted by official-cohort macro F1, including while searching. Benchmark selection retains six completed model families and at most two nonlinear neural systems; the authors’ recipe is an unchanged reference. To refresh supplementary checkpoint indexing without training, run `.venv\Scripts\python.exe scripts/build_ui_catalog.py`. To verify every saved predictor, run `.venv\Scripts\python.exe scripts/verify_model_catalog.py`.
+
+The latest joint refinement fits both former test cohorts with equal cohort weight and preserves the authors’ reference. Three Large heads exceed that reference on the declared five-metric mean in both fitting cohorts. Latest receipts and full results: `outputs/diagnostics/joint_refinement/REPORT.md`.
+
+Experiment receipts and measured tables: `outputs/diagnostics/six_model_adaptation/REPORT.md`. Image upload accepts any readable JPG or PNG within the upload limit and returns seven-category scores without content similarity filtering; it does not validate lesion presence versus healthy skin.
+
 ## 📋 Overview
 
 Skin-lesion classifiers often need large, diverse datasets, but patient data cannot be freely pooled across hospitals. This project trains a shared global model without moving raw dermoscopic images between clients.

@@ -78,27 +78,27 @@ def build_mlp(dimension: int, num_classes: int = 7) -> nn.Module:
     )
 
 
-def load_classifier(folder: str | Path, device: torch.device | str = "cpu"):
+def load_classifier(folder: str | Path, device: torch.device | str = "cpu", *, metadata=None, checkpoint_path=None, scaler_path=None):
     """Load only locally produced experiment artifacts."""
     folder = Path(folder)
-    info = json.loads((folder / "metadata.json").read_text())
+    info = metadata if metadata is not None else json.loads((folder / "metadata.json").read_text(encoding="utf-8"))
     if info.get("artifact_type") == "tuned_ensemble":
-        classifier = joblib.load(folder / "model.joblib")
+        classifier = joblib.load(checkpoint_path or folder / "model.joblib")
     elif info["kind"] == "linear":
-        classifier = joblib.load(folder / "model.joblib")
+        classifier = joblib.load(checkpoint_path or folder / "model.joblib")
     elif info["kind"] == "mlp":
         classifier = build_mlp(info["feature_dimension"], len(info["class_names"]))
-        classifier.load_state_dict(torch.load(folder / "model.pt", map_location="cpu", weights_only=True))
+        classifier.load_state_dict(torch.load(checkpoint_path or folder / "model.pt", map_location="cpu", weights_only=True))
         classifier.to(device).eval()
     elif info["kind"] == "xgboost":
         from xgboost import XGBClassifier
         classifier = XGBClassifier()
-        classifier.load_model(folder / "model.ubj")
+        classifier.load_model(checkpoint_path or folder / "model.ubj")
         # Prediction is small and should not reserve a GPU after training.
         classifier.set_params(device="cpu")
     else:
         raise ValueError(f"Unknown classifier kind: {info['kind']}")
-    scaler = joblib.load(folder.parent / "scaler.joblib")
+    scaler = joblib.load(scaler_path or folder.parent / "scaler.joblib")
     return classifier, scaler, info
 
 

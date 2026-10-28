@@ -45,3 +45,6 @@ Thumbs.db
 
 # Streamlit
 .streamlit/
+
+# Installed JavaScript dependencies
+node_modules/
