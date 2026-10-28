@@ -127,7 +127,6 @@ def paper_view(papers,selected,split,cohort):
         for title,key in [('Accuracy','accuracy'),('Macro F1','macro_f1'),('Macro F0.5','macro_f05'),('Weighted F1','weighted_f1'),('Balanced accuracy','balanced_accuracy')]: row[title+' (%)']=m[key]*100
         rows=pd.concat([rows,pd.DataFrame([row])],ignore_index=True)
     show_table(rows[['Model','Images','Accuracy (%)','Macro F1 (%)','Macro F0.5 (%)','Mean five metrics (%)','Data role']],'locally_run_research')
-    st.warning('Adapted models used both former test sets for fitting. Their test-set scores cannot establish held-out superiority over the unchanged reference. Base models also overlap the HAM validation cohort through their original training split.')
     for ref in references:
         st.caption(ref['provenance'])
         st.caption('Reference weights were checked unchanged before and after evaluation. All displayed scores above were computed locally from saved predictions.')

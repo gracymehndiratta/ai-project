@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import pandas as pd
 import streamlit as st
 import yaml
 from src.utils.config import load_config
@@ -34,6 +35,24 @@ def run_demo(config,directory,timeout=180):
 def federated_panel():
     st.subheader('Federated learning: setup and test')
     config=load_config(str(ROOT/'config.yaml'));fed=config['federated']
+    ham_manifest=ROOT/'data/processed/HAM10000_metadata.csv'
+    if ham_manifest.exists():
+        ham=pd.read_csv(ham_manifest)
+        ham['image_path']=ham['image_path'].map(lambda value: Path(value) if isinstance(value,str) else None)
+        ham=ham[ham.image_path.map(lambda path: path is not None and path.is_file())]
+        examples=[]
+        for label in ('akiec','bcc','bkl','df','mel','nv','vasc'):
+            matching=ham[ham.label.eq(label)]
+            if not matching.empty: examples.append(matching.iloc[0])
+        if examples:
+            st.markdown('**Real HAM10000 client data**')
+            st.caption(f'{len(ham):,} original HAM10000 dermoscopic images are available locally. These examples are read directly from the dataset and grouped by diagnosis; no synthetic images are used in this gallery.')
+            columns=st.columns(len(examples))
+            for column,row in zip(columns,examples):
+                column.image(str(row.image_path),use_container_width=True)
+                column.caption(f"{row.label.upper()} · {row.image_id}")
+    else:
+        st.warning('HAM10000 images are not available at data/processed/HAM10000_metadata.csv. The dataset gallery is unavailable.')
     st.write('Each client trains on its own partition. The server averages model weights in proportion to client sample counts, then evaluates the global model.')
     st.code('Global model → clients train locally → weighted aggregation → updated global model',language=None)
     st.write(f"Configured training: {fed['num_clients']} clients, {fed['num_rounds']} rounds, {fed['local_epochs']} local epochs, {fed['aggregation'].upper()}, {'IID' if fed['iid'] else 'non-IID'} partitions.")
