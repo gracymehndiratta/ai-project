@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import sys
 import json
+import subprocess
+import os
+import copy
+import yaml
 from pathlib import Path
 
 import streamlit as st
@@ -63,6 +67,47 @@ def main():
     config = load_config("config.yaml")
     model_dir = Path(config["outputs"]["models_dir"])
 
+    with st.expander("Federated learning: setup and test", expanded=True):
+        st.write("The server sends a global model to simulated clients. Each client trains on its own partition, then the server combines model weights in proportion to each client's training examples. The resulting model is evaluated on held-out data.")
+        st.code("Global model → clients train locally → weighted aggregation → updated global model", language=None)
+        fed = config["federated"]
+        st.write(f"Configured run: {fed['num_clients']} clients, {fed['num_rounds']} rounds, {fed['local_epochs']} local epochs, {fed['aggregation'].upper()}, {'IID' if fed['iid'] else 'non-IID'} partitions.")
+        st.write(f"Differential privacy in the configured run: {'enabled' if config['differential_privacy']['enabled'] else 'disabled'}. This is a simulation on one computer, not a deployment across separate hospitals.")
+        st.caption("Try a two-client, two-round FedAvg simulation on random synthetic images. Differential privacy is disabled in this quick demonstration. Its accuracy and model are not medically meaningful; its files are separate from trained models.")
+        demo_dir = Path("artifacts/federated-demo").resolve()
+        if st.button("Run federated demonstration"):
+            demo = copy.deepcopy(config)
+            demo["dataset"].update(processed_dir=str(demo_dir / "data"), raw_dir=str(demo_dir / "raw"), synthetic_samples=140, image_size=32)
+            demo["model"].update(backbone="custom_cnn", freeze_backbone=False)
+            demo["federated"].update(num_clients=2, num_rounds=2, local_epochs=1, batch_size=8, fraction_fit=1.0, fraction_evaluate=1.0, aggregation="fedavg", iid=True)
+            demo["differential_privacy"]["enabled"] = False
+            demo["outputs"] = {key: str(demo_dir / key) for key in demo["outputs"]}
+            demo_dir.mkdir(parents=True, exist_ok=True)
+            config_path = demo_dir / "config.yaml"
+            config_path.write_text(yaml.safe_dump(demo))
+            report_path = demo_dir / "models_dir" / "federated_metrics.json"
+            report_path.unlink(missing_ok=True)
+            env = os.environ.copy()
+            env["CUDA_VISIBLE_DEVICES"] = ""
+            with st.spinner("Training clients and aggregating their models; this may take several minutes..."):
+                try:
+                    result = subprocess.run([sys.executable, "scripts/federated_demo.py", "--config", str(config_path)], capture_output=True, text=True, env=env, timeout=600)
+                    if result.returncode:
+                        st.error("The demonstration did not complete. Diagnostic output:")
+                        st.code((result.stderr + "\n" + result.stdout)[-8000:])
+                    else:
+                        st.success("Federated demonstration completed.")
+                except subprocess.TimeoutExpired:
+                    st.error("The demonstration timed out after 10 minutes.")
+        report_path = demo_dir / "models_dir" / "federated_metrics.json"
+        if report_path.exists():
+            report = json.loads(report_path.read_text())
+            st.write("Latest synthetic demonstration:", report.get("setup", {}))
+            st.dataframe(report["round_history"], hide_index=True)
+            st.metric("Held-out synthetic test accuracy", f"{report['final']['test_accuracy']:.1%}")
+            st.caption("Random synthetic images only test the software; accuracy does not measure clinical performance.")
+
+
     legacy_models = {p.name: p for p in sorted(model_dir.glob("*.pt"))}
     feature_models = {}
     recommended = None
@@ -105,7 +150,7 @@ def main():
                 recommended, recommended_score = label, score
     available_models = list(feature_models) + list(legacy_models)
     if not available_models:
-        st.error("No trained model found in outputs/models/. Please run training first.")
+        st.info("No trained prediction model is available yet. The federated demonstration above can still be run.")
         return
 
     selected_model = st.sidebar.selectbox("Select model", available_models,
@@ -210,3 +255,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -88,6 +89,9 @@ def load_data_for_simulation(config: dict, use_synthetic: bool = False):
     client_val_indices = np.array_split(val_indices, num_clients)
     client_val_sets = [Subset(val_set, idx.tolist()) for idx in client_val_indices]
 
+    if any(len(ds) == 0 for ds in client_train_sets + client_val_sets):
+        raise ValueError("Every client needs training and validation samples; reduce the client count or use more data")
+
     print("Client train set sizes:", [len(ds) for ds in client_train_sets])
     print("Client val set sizes:", [len(ds) for ds in client_val_sets])
 
@@ -115,6 +119,9 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     fraction_fit = config["federated"]["fraction_fit"]
     fraction_evaluate = config["federated"]["fraction_evaluate"]
 
+    if num_clients < 2 or num_rounds < 1 or not 0 < fraction_fit <= 1 or not 0 < fraction_evaluate <= 1:
+        raise ValueError("Use at least two clients, a positive round count, and fractions in (0, 1]")
+
     initial_model = build_model(
         config["model"]["backbone"],
         num_classes,
@@ -132,8 +139,8 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     strategy = FedAvgWithLogging(
         fraction_fit=fraction_fit,
         fraction_evaluate=fraction_evaluate,
-        min_fit_clients=num_clients,
-        min_evaluate_clients=max(1, int(num_clients * fraction_evaluate)),
+        min_fit_clients=max(1, math.ceil(num_clients * fraction_fit)),
+        min_evaluate_clients=max(1, math.ceil(num_clients * fraction_evaluate)),
         min_available_clients=num_clients,
         initial_parameters=initial_parameters,
         accept_failures=False,
@@ -211,7 +218,14 @@ def train_federated(config: dict, use_synthetic: bool = False) -> dict:
     # Save metrics and plots
     plot_dir = Path(config["outputs"]["plots_dir"])
     with open(out_dir / "federated_metrics.json", "w") as f:
-        json.dump({"final": metrics, "round_history": round_metrics}, f, indent=2)
+        json.dump({"final": metrics, "round_history": round_metrics,
+                   "setup": {"synthetic": use_synthetic, "clients": num_clients, "rounds": num_rounds,
+                             "local_epochs": config["federated"]["local_epochs"],
+                             "aggregation": config["federated"].get("aggregation", "fedavg"),
+                             "iid": config["federated"]["iid"],
+                             "differential_privacy": config["differential_privacy"]["enabled"],
+                             "client_train_sizes": [len(ds) for ds in train_datasets],
+                             "client_validation_sizes": [len(ds) for ds in val_datasets]}}, f, indent=2, allow_nan=False)
 
     plot_confusion_matrix(
         all_labels,
