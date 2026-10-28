@@ -6,7 +6,9 @@ ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 
 
-def main(step=1):
+def main(step=1, allow_test_fitting=False):
+    from src.utils.research_integrity import require_exploratory_opt_in
+    require_exploratory_opt_in(allow_test_fitting)
     os.chdir(ROOT)
     from datetime import datetime,timezone
     import copy
@@ -163,4 +165,6 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser()
     parser.add_argument('--step',type=int,choices=range(1,6),default=1)
-    main(step=parser.parse_args().step)
+    parser.add_argument('--allow-test-fitting', action='store_true', help='Historical fitting only; invalidates independent test claims')
+    args=parser.parse_args()
+    main(step=args.step, allow_test_fitting=args.allow_test_fitting)

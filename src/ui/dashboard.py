@@ -82,7 +82,7 @@ def image_checker(models,selected):
     by_id={m['id']:m for m in choices}
     selected_id=st.selectbox('Prediction model',list(by_id),format_func=lambda key:by_id[key]['selection_label'],key='prediction_model',filter_mode='contains')
     chosen=by_id[selected_id]
-    st.caption(f"{len(choices)} saved seven-class predictors. Ordered by official-cohort macro F1, highest first. Unscored checkpoints appear last. The benchmark filter does not restrict this dropdown.")
+    st.caption(f"{len(choices)} saved seven-class predictors. Ordered alphabetically; evaluation scores do not select the default model. The benchmark filter does not restrict this dropdown.")
     st.caption('Checkpoint: '+str(chosen['artifact_path']))
     st.caption('Class probabilities compare the seven trained categories; they do not establish lesion presence.')
     mode=st.radio('Image source',['Upload image','Try a dataset example'],horizontal=True,key='image_source')
@@ -129,19 +129,22 @@ def paper_view(papers,selected,split,cohort):
     show_table(rows[['Model','Images','Accuracy (%)','Macro F1 (%)','Macro F0.5 (%)','Mean five metrics (%)','Data role']],'locally_run_research')
     for ref in references:
         st.caption(ref['provenance'])
-        st.caption('Reference weights were checked unchanged before and after evaluation. All displayed scores above were computed locally from saved predictions.')
+        st.caption('Reference weights were checked unchanged before and after evaluation. Recorded scores require independent recalculation from saved predictions before acceptance.')
     st.subheader('Both cohorts — five-metric average')
     st.caption('Equal-weight mean of accuracy, macro F1, macro F0.5, weighted F1 and balanced accuracy. This is a declared comparison criterion, not a universal ranking. Adapted checkpoints were selected using fitting scores on both cohorts.')
     comparisons=[]
+    if not references:
+        st.info('No local reference artifacts are available.');return
+    st.warning('Adapted models and the unchanged reference have different training exposure. Score differences cannot establish independent model superiority.')
     reference=references[0]['metrics']
     for model in selected:
         ham=mean_five(model['metrics']['test']);isic=mean_five(model['metrics']['official_test'])
         comparisons.append({'Model':model['name'],'HAM mean (%)':ham*100,'ISIC mean (%)':isic*100,
             'HAM difference (pp)':(ham-mean_five(reference['test']))*100,
             'ISIC difference (pp)':(isic-mean_five(reference['official_test']))*100,
-            'Above reference on both':ham>mean_five(reference['test']) and isic>mean_five(reference['official_test'])})
+            'Higher historical scores on both (unmatched exposure)':ham>mean_five(reference['test']) and isic>mean_five(reference['official_test'])})
     comparisons.append({'Model':'Authors’ recipe — unchanged','HAM mean (%)':mean_five(reference['test'])*100,
-        'ISIC mean (%)':mean_five(reference['official_test'])*100,'HAM difference (pp)':0.,'ISIC difference (pp)':0.,'Above reference on both':False})
+        'ISIC mean (%)':mean_five(reference['official_test'])*100,'HAM difference (pp)':0.,'ISIC difference (pp)':0.,'Higher historical scores on both (unmatched exposure)':False})
     show_table(pd.DataFrame(comparisons),'joint_cohort_comparison')
     st.subheader('Five-paper execution status')
     statuses=[{'Paper':p['short_name'],'Local evaluation':'Completed: official encoder + authors’ linear-probe recipe' if p['id']=='panderm2025' else 'Not run: matching trained checkpoint not verified','Source':p['url']} for p in papers]
@@ -160,20 +163,21 @@ def main():
     st.title('Skin Lesion Research Comparison')
     st.write('Six local models, five research papers, and seven lesion categories — with explicit metrics and evaluation protocols.')
     models=saved_models();papers=research()
-    stage=st.sidebar.radio('Model checkpoints',['Adapted models','Original checkpoints'],key='checkpoint_stage')
-    selected=benchmark_models(models,'adapted' if stage=='Adapted models' else 'original')
-    if len(selected)!=6: st.error('Six complete model artifacts are required in outputs/feature_models.');return
+    stage=st.sidebar.radio('Model checkpoints',['Original checkpoints','Historical fitting archive'],key='checkpoint_stage')
+    selected=benchmark_models(models,'adapted' if stage=='Historical fitting archive' else 'original')
+    st.warning('Historical exploratory results only. Adapted scores are fitting metrics. Validation was repeatedly inspected and cross-branch overlap exists. No fresh independent accuracy or matched federated/DP performance is established.')
+    if not selected: st.info('No eligible local model artifacts found. Train or restore checkpoints to view comparisons.');federated_panel();return
     st.sidebar.header('Evaluation cohort')
     cohort=st.sidebar.selectbox('Show local results on',list(SPLITS),key='evaluation_cohort');split=SPLITS[cohort]
-    st.sidebar.caption('Top six eligible model families by official-cohort macro F1, with at most two nonlinear neural systems. The four refined Large families use checkpoints selected by the weaker of their HAM/ISIC five-metric gains; other families use their best eligible saved checkpoint. The adapted view uses adapted copies; the authors’ recipe is a separate unchanged reference.')
+    st.sidebar.caption('Up to six eligible families in alphabetical order, with at most two nonlinear neural systems. No evaluation metric or historical preferred-checkpoint flag is used for selection. The historical archive contains fitting results.')
     st.sidebar.caption('Tests were inspected repeatedly: exploratory comparisons, not a fresh blind benchmark.')
-    for column,label,value in zip(st.columns(4),['Compared models','Neural heads','Research papers','Lesion categories'],[6,sum(m['neural'] for m in selected),len(papers),len(CLASS_LABELS)]): column.metric(label,value)
-    tabs=st.tabs(['Our six models','Research papers','Seven lesion types','Image checker','Adaptation history','Federated learning'])
+    for column,label,value in zip(st.columns(4),['Compared models','Neural heads','Research papers','Lesion categories'],[len(selected),sum(m['neural'] for m in selected),len(papers),len(CLASS_LABELS)]): column.metric(label,value)
+    tabs=st.tabs(['Local models','Research papers','Seven lesion types','Image checker','Adaptation history','Federated learning'])
     with tabs[0]:
-        st.subheader('Six selected local models')
-        st.caption('All six use the same evaluation image IDs. Toggle original checkpoints to compare before and after adaptation. Both former test sets are fitting data for adapted models.')
+        st.subheader('Local exploratory results')
+        st.caption('Cohort definitions and training exposure can differ across families. Former test cohorts are fitting data for adapted models; these scores do not establish generalization.')
         data=summary(selected,split)
-        if data.Images.nunique()>1: st.warning('Internal cohorts differ across model families. Use the official test view for the same 1,512-image population.')
+        if data.Images.nunique()>1: st.warning('Internal cohorts differ across model families. Do not interpret different cohorts as a matched model comparison.')
         show_table(data[['Model','Images','Accuracy (%)','Macro F1 (%)','Macro F0.5 (%)','Weighted F1 (%)','Balanced accuracy (%)','Mean five metrics (%)','Data role']],'six_model_results')
         st.bar_chart(data,x='Model',y='Macro F1 (%)',horizontal=True)
         st.download_button('Download local comparison CSV',data.to_csv(index=False).encode(),'local_model_comparison.csv','text/csv',key='download_local')

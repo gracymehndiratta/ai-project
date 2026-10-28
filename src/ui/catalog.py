@@ -1,8 +1,8 @@
 """Discover saved seven-class predictors independently of benchmark eligibility."""
 import json
-import math
 from pathlib import Path
 from src.ui.results import model_name
+from src.utils.research_integrity import contaminated, presentation_order
 
 
 def read(path):
@@ -10,12 +10,13 @@ def read(path):
 
 
 def rank_models(models):
-    return sorted(models,key=lambda m:(-m.get('ranking_score',-math.inf),m['id']))
+    return presentation_order(models)
 
 
 def saved_models(root=Path('outputs')):
     result=[]
-    active=read(root/'diagnostics/six_model_adaptation/active_models.json')
+    registry=root/'diagnostics/six_model_adaptation/active_models.json'
+    active=read(registry) if registry.exists() else []
     source_families={Path(m['source_folder']).as_posix():m['id'] for m in active}
     for path in sorted(root.rglob('metadata.json')):
         info=read(path);folder=path.parent
@@ -28,7 +29,7 @@ def saved_models(root=Path('outputs')):
         elif (folder.parent/'metrics.json').exists():
             metrics={key:value['after'] for key,value in read(folder.parent/'metrics.json').items() if isinstance(value,dict) and 'after' in value}
         else: metrics={}
-        adapted=bool(info.get('data_contaminated_for_test_evaluation'))
+        adapted=contaminated({'info':info,'folder':folder})
         family=source_families.get(folder.as_posix(),folder.as_posix())
         if 'six_model_adaptation' in folder.parts: family=folder.parent.name
         elif folder.name=='adapted' and 'panderm_test_adaptation' in folder.parent.name: family='large_nn128'
@@ -54,22 +55,19 @@ def saved_models(root=Path('outputs')):
             if m['artifact_path'].is_file(): result.append(m)
     unique={m['artifact_path'].resolve().as_posix():m for m in result}
     for m in unique.values():
-        score=m.get('metrics',{}).get('official_test',{}).get('macro_f1')
-        m['ranking_score']=float(score) if score is not None and math.isfinite(float(score)) else -math.inf
-        m['selection_label']=(f"F1 {score:.2%}" if score is not None else 'F1 unavailable')+f" · {m['name']} · {m['checkpoint_label']}"
+        m['selection_label']=f"{m['name']} · {m['checkpoint_label']}" + (' · historical fitting' if contaminated(m) else '')
+        m['selection_basis']='alphabetical; evaluation scores never used'
     return rank_models(list(unique.values()))
 
 
-def benchmark_models(models,stage='adapted'):
-    """Best checkpoint per experiment family, with at most two neural systems."""
+def benchmark_models(models,stage='original'):
+    """Stable presentation subset; adapted stage is a historical fitting archive."""
     families=set();chosen=[];neural=0
-    preferred={m['family_id'] for m in models if m.get('preferred_for_benchmark') and m.get('stage')==stage}
     for m in rank_models(models):
-        if m['family_id'] in preferred and not m.get('preferred_for_benchmark'): continue
+        if stage!='adapted' and contaminated(m): continue
         if m.get('reference') or not m.get('benchmark_eligible',True) or m['family_id'] in families: continue
         if stage=='adapted' and m.get('stage')!='adapted': continue
         if stage=='original' and m.get('stage')=='adapted': continue
-        if m.get('metrics',{}).get('official_test',{}).get('images')!=1512: continue
         if m['neural'] and neural>=2: continue
         chosen.append(m);families.add(m['family_id']);neural+=int(m['neural'])
         if len(chosen)==6: break

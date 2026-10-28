@@ -65,7 +65,7 @@ def main():
     app.sidebar.radio(key='checkpoint_stage').set_value('Original checkpoints').run()
     assert not app.exception
     assert not any('Fitting data' in str(value) for value in app.dataframe[0].value['Data role'])
-    app.sidebar.radio(key='checkpoint_stage').set_value('Adapted models').run()
+    app.sidebar.radio(key='checkpoint_stage').set_value('Historical fitting archive').run()
     assert not app.exception
     for value in app.sidebar.selectbox[0].options:
         app.sidebar.selectbox[0].set_value(value).run();assert not app.exception,app.exception

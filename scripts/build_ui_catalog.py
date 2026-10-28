@@ -95,7 +95,7 @@ def main():
             'reference':True,'metrics':read(source/'metrics.json')})
     (out/'additional_models.json').write_text(json.dumps(entries,indent=2,ensure_ascii=False),encoding='utf-8')
     models=saved_models()
-    (out/'inventory.csv').write_text(pd.DataFrame([{'model':m['selection_label'],'artifact':str(m['artifact_path']),'macro_f1':m['ranking_score']} for m in models]).to_csv(index=False),encoding='utf-8')
+    (out/'inventory.csv').write_text(pd.DataFrame([{'model':m['selection_label'],'artifact':str(m['artifact_path']),'selection_basis':m['selection_basis']} for m in models]).to_csv(index=False),encoding='utf-8')
     print(f'Indexed {len(models)} saved seven-class predictors; no weights modified.',flush=True)
 
 if __name__=='__main__':main()

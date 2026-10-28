@@ -31,7 +31,7 @@ def main():
             probability=classifier_probabilities(head,xx,info['kind'])
         assert probability.shape[1]==7 and np.isfinite(probability).all(),m['id']
         assert np.allclose(probability.sum(1),1,atol=1e-5),m['id']
-        results.append({'id':m['id'],'passed':True,'macro_f1':m['ranking_score']})
+        results.append({'id':m['id'],'passed':True,'selection_basis':m['selection_basis']})
     # Exercise preprocessing paths which were previously unavailable in the UI.
     for multiview in [False,True]:
         choice=next(m for m in models if m['info']['backbone']=='efficientnet_b0' and m['info']['kind']=='linear' and (m['info'].get('feature_views')=='full_d4_center')==multiview)
@@ -40,6 +40,6 @@ def main():
     report={'passed':True,'saved_checkpoints':len(models),'all_checkpoint_heads_passed':True,'efficientnet_canonical_and_multiview_image_inference_passed':True,
         'benchmark_models':[m['id'] for m in benchmark_models(models)],'models':results}
     Path('artifacts/ui_qa/catalog_verification.json').write_text(json.dumps(report,indent=2))
-    print(f'PASS: {len(models)} saved predictors, canonical and multi-view image inference, ranked six-model benchmark',flush=True)
+    print(f'PASS: {len(models)} saved predictors, canonical and multi-view image inference, alphabetical model presentation',flush=True)
 
 if __name__=='__main__':main()

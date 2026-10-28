@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import pandas as pd
+from src.utils.research_integrity import contaminated, presentation_order
 
 CLASS_LABELS={'akiec':'Actinic keratosis / Bowen disease','bcc':'Basal cell carcinoma','bkl':'Benign keratosis-like lesion',
     'df':'Dermatofibroma','mel':'Melanoma','nv':'Melanocytic nevus','vasc':'Vascular lesion'}
@@ -24,8 +25,7 @@ def adapted_models(stage='adapted'):
         info=json.loads((folder/'metadata.json').read_text(encoding='utf-8'))
         metrics=json.loads(Path(item['after_metrics'] if stage=='adapted' else item['before_metrics']).read_text())
         selected.append({'id':item['id'],'folder':folder,'name':item['name'].replace(' · existing 5 updates',''),
-            'info':info,'metrics':metrics,'neural':item['neural'],'exposure':item['exposure'],'stage':stage,
-            'ranking_score':metrics['official_test']['macro_f1']})
+            'info':info,'metrics':metrics,'neural':item['neural'],'exposure':item['exposure'],'stage':stage})
     if len(selected)!=6 or sum(model['neural'] for model in selected)>2:
         raise ValueError('The active comparison requires six models with at most two neural heads.')
     return selected
@@ -43,13 +43,13 @@ def exposure_label(model,split):
     exposure=model.get('exposure',{}).get(split,{})
     if model.get('stage')=='adapted' and exposure.get('adaptation_overlap',0): return 'Fitting data: used for adaptation'
     if exposure.get('prior_training_overlap',0): return f"Original training overlap: {exposure['prior_training_overlap']}/{exposure['images']}"
-    return 'Excluded from adaptation; reused evaluation' if model.get('stage')=='adapted' else 'Original checkpoint; no new adaptation'
+    return 'Fitting / reused evaluation; independence not established' if contaminated(model) else 'Historical evaluation; independence across experiments not established'
 
 
 def model_name(folder,info):
     backbone={'panderm_large':'PanDerm Large','panderm_base':'PanDerm Base','efficientnet_b0':'EfficientNet-B0'}.get(info['backbone'],info['backbone'])
     kind={'linear':'Linear head','paper':'Authors’ linear recipe','mlp':'Neural head','xgboost':'XGBoost',
-        'nearest':'Nearest neighbor','specialists':'Seven specialists'}[info['kind']]
+        'nearest':'Nearest neighbor','specialists':'Seven specialists','cnn':'Fine-tuned image CNN'}[info['kind']]
     if info['kind']=='mlp':
         architecture=info.get('architecture') or info.get('details',{}).get('architecture')
         if not architecture and info.get('details',{}).get('widths'):
@@ -68,18 +68,18 @@ def all_models(root=Path('outputs/feature_models')):
     for path in sorted(Path(root).glob('*/*/metadata.json')):
         info=json.loads(path.read_text());metric_path=path.parent/'metrics.json'
         if info.get('format_version')!=1 or not metric_path.exists(): continue
-        if info.get('data_contaminated_for_test_evaluation') or info.get('excluded_from_clean_model_ranking'): continue
+        if contaminated({'info':info,'folder':path.parent}): continue
         metrics=json.loads(metric_path.read_text())
         if 'official_test' not in metrics: continue
         models.append({'id':path.parent.as_posix(),'folder':path.parent,'name':model_name(path.parent,info),
-            'info':info,'metrics':metrics,'neural':info['kind']=='mlp',
-            'ranking_score':metrics['official_test']['macro_f1']})
-    return sorted(models,key=lambda model:(-model['ranking_score'],model['id']))
+            'info':info,'metrics':metrics,'neural':info['kind']=='mlp'})
+    return presentation_order(models)
 
 
 def top_six(models):
     selected=[];neural_count=0
-    for model in models:
+    for model in presentation_order(models):
+        if contaminated(model): continue
         # Binary specialist systems can contain MLPs; conservatively count mixed systems too.
         is_neural=model['neural'] or model['info']['kind']=='specialists'
         if is_neural and neural_count>=2: continue

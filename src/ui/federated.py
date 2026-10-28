@@ -34,6 +34,7 @@ def run_demo(config,directory,timeout=180):
 
 def federated_panel():
     st.subheader('Federated learning: setup and test')
+    st.warning('High PanDerm classification scores come from separate non-federated experiments. Real-image federated utility, a matched centralized baseline and achieved privacy parameters must be demonstrated separately. Configured DP settings are not evidence of a completed privacy guarantee.')
     config=load_config(str(ROOT/'config.yaml'));fed=config['federated']
     ham_manifest=ROOT/'data/processed/HAM10000_metadata.csv'
     if ham_manifest.exists():

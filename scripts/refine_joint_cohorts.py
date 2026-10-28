@@ -8,7 +8,9 @@ KEYS=['accuracy','macro_f1','macro_f05','weighted_f1','balanced_accuracy']
 
 def mean_five(metrics): return sum(metrics[key] for key in KEYS)/len(KEYS)
 
-def main():
+def main(allow_test_fitting=False):
+    from src.utils.research_integrity import require_exploratory_opt_in
+    require_exploratory_opt_in(allow_test_fitting)
     import os,json,copy
     import joblib,numpy as np,pandas as pd,torch,xgboost as xgb
     from torch import nn
@@ -141,4 +143,8 @@ def main():
     (root/'verification.json').write_text(json.dumps(verification,indent=2))
     print(json.dumps(verification,indent=2),flush=True)
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--allow-test-fitting', action='store_true', help='Historical fitting only; invalidates independent test claims')
+    main(allow_test_fitting=parser.parse_args().allow_test_fitting)

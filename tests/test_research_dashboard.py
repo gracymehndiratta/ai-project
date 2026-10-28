@@ -6,15 +6,15 @@ from src.ui.results import all_models,top_six,research,CLASS_LABELS
 from src.ui.uploads import decode_image,quality_issue
 
 
-def test_saved_dropdown_catalog_includes_all_families_in_score_order():
+@pytest.mark.skipif(not Path('outputs/diagnostics/six_model_adaptation/active_models.json').exists(), reason='Historical local experiment artifacts required')
+def test_saved_dropdown_catalog_includes_all_families_in_alphabetical_order():
     from src.ui.catalog import saved_models,benchmark_models
     models=saved_models()
-    scores=[m['ranking_score'] for m in models]
-    assert scores==sorted(scores,reverse=True)
+    assert models == sorted(models,key=lambda m:(m['name'].casefold(),m['id']))
     assert len({m['id'] for m in models})==len(models)
     assert len({m['selection_label'] for m in models})==len(models)
     assert all(m['manifest_path'].is_file() for m in models)
-    assert all(m['ranking_score']>=0 for m in models)
+    assert all('evaluation scores never used' in m['selection_basis'] for m in models)
     assert {'efficientnet_b0','panderm_large','panderm_base'} <= {m['info']['backbone'] for m in models}
     assert {'linear','mlp','xgboost','specialists','cnn'} <= {m['info']['kind'] for m in models}
     assert any(m['stage']=='adapted' for m in models)
@@ -25,10 +25,11 @@ def test_saved_dropdown_catalog_includes_all_families_in_score_order():
         assert len(selected)==6 and sum(m['neural'] for m in selected)<=2
         assert not any(m.get('reference') for m in selected)
         assert len({m['family_id'] for m in selected})==6
-        assert [m['ranking_score'] for m in selected]==sorted([m['ranking_score'] for m in selected],reverse=True)
+        assert selected==sorted(selected,key=lambda m:(m['name'].casefold(),m['id']))
         if stage=='adapted': assert all(m['stage']=='adapted' for m in selected)
 
 
+@pytest.mark.skipif(not Path('outputs/diagnostics/six_model_adaptation/active_models.json').exists(), reason='Historical local experiment artifacts required')
 def test_adapted_comparison_preserves_six_families_and_marks_exposure():
     from src.ui.results import adapted_models,local_research,exposure_label
     selected=adapted_models()
@@ -43,12 +44,13 @@ def test_adapted_comparison_preserves_six_families_and_marks_exposure():
     assert refs[0]['metrics']['official_test']['images']==1512
 
 
+@pytest.mark.skipif(not Path('outputs/diagnostics/six_model_adaptation/active_models.json').exists(), reason='Historical local experiment artifacts required')
 def test_top_six_matches_recorded_ranking_and_limits_neural_heads():
     selected=top_six(all_models())
     assert len(selected)==6
     assert sum(model['neural'] for model in selected)==2
     assert len({model['name'] for model in selected})==6
-    assert selected[0]['info']['kind']=='linear'
+    assert selected==sorted(selected,key=lambda m:(m['name'].casefold(),m['id']))
     assert all(model['metrics']['official_test']['images']==1512 for model in selected)
     assert all(not model['info'].get('data_contaminated_for_test_evaluation') for model in selected)
 

@@ -10,13 +10,24 @@ New to the project? Start with the [non-technical teammate learning guide](TEAM_
 
 ## Local research dashboard (PanDerm experiments)
 
-Run `.venv\Scripts\python.exe -m streamlit run scripts/app.py --server.address 127.0.0.1 --server.port 8501` and open http://127.0.0.1:8501. The current dashboard compares six preserved/adapted PanDerm heads (maximum two nonlinear neural heads), locally measured PanDerm author-recipe reference results, and five linked paper studies. Both former test cohorts were used to adapt our copies; their results are labelled fitting metrics. Original checkpoints are selectable. Other papers without verified trained checkpoints have no local scores.
+The dashboard presents historical exploratory results. Original checkpoints are shown
+by default; former-test adaptations are available in the **Historical fitting archive**.
+Model lists and the presentation subset use alphabetical ordering, never test scores
+or historically preferred checkpoints. Different training exposure and reused
+validation cohorts prevent independent superiority claims.
 
-The image-checker dropdown lists all saved seven-class predictors, including EfficientNet, PanDerm, XGBoost, specialist ensembles, and adapted checkpoints. Options are sorted by official-cohort macro F1, including while searching. Benchmark selection retains six completed model families and at most two nonlinear neural systems; the authors’ recipe is an unchanged reference. To refresh supplementary checkpoint indexing without training, run `.venv\Scripts\python.exe scripts/build_ui_catalog.py`. To verify every saved predictor, run `.venv\Scripts\python.exe scripts/verify_model_catalog.py`.
+Run `python -m streamlit run scripts/app.py` from a configured environment. Saved
+checkpoints, feature caches and datasets are local artifacts and are not included
+in a fresh Git worktree. An empty installation shows an artifact-availability notice.
+The image checker always chooses among seven lesion categories; it does not validate
+lesion presence. The federated quick demo uses synthetic images and disables DP;
+PanDerm fitting scores do not describe that demonstration.
 
-The latest joint refinement fits both former test cohorts with equal cohort weight and preserves the authors’ reference. Three Large heads exceed that reference on the declared five-metric mean in both fitting cohorts. Latest receipts and full results: `outputs/diagnostics/joint_refinement/REPORT.md`.
-
-Experiment receipts and measured tables: `outputs/diagnostics/six_model_adaptation/REPORT.md`. Image upload accepts any readable JPG or PNG within the upload limit and returns seven-category scores without content similarity filtering; it does not validate lesion presence versus healthy skin.
+The three former-test adaptation scripts refuse training by default. Their explicit
+`--allow-test-fitting` option is for historical reproduction only. For new work,
+use the train/validation pipelines and freeze a model before a fresh blind test.
+See [RESEARCH_INTEGRITY.md](RESEARCH_INTEGRITY.md) for the evidence requirements,
+identity-overlap checks and prediction-recalculation command.
 
 ## 📋 Overview
 

@@ -6,7 +6,9 @@ ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT))
 
 
-def main():
+def main(allow_test_fitting=False):
+    from src.utils.research_integrity import require_exploratory_opt_in
+    require_exploratory_opt_in(allow_test_fitting)
     os.chdir(ROOT)
     import copy
     import json
@@ -206,4 +208,8 @@ def main():
     print(pd.DataFrame(records).query("stage=='adapted' and split=='official_test'").to_string(index=False),flush=True)
 
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--allow-test-fitting', action='store_true', help='Historical fitting only; invalidates independent test claims')
+    main(allow_test_fitting=parser.parse_args().allow_test_fitting)
