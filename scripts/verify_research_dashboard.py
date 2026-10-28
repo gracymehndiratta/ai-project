@@ -60,7 +60,7 @@ def main():
     assert chart_result['status']=='classified' and len(chart_result['probabilities'])==7,chart_result
     app=AppTest.from_file(str(ROOT/'scripts/app.py'),default_timeout=180).run()
     assert not app.exception,app.exception
-    assert len(app.tabs)==5
+    assert len(app.tabs)==6
     assert len(app.dataframe[0].value)==6
     app.sidebar.radio(key='checkpoint_stage').set_value('Original checkpoints').run()
     assert not app.exception

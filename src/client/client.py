@@ -128,10 +128,9 @@ class SkinLesionClient(fl.client.NumPyClient):
         if self.privacy_engine is not None:
             epsilon = self.privacy_engine.get_epsilon(delta=self.target_delta)
 
-        metrics = {
-            "client_id": self.client_id,
-            "epsilon": float(epsilon),
-        }
+        metrics = {}
+        if self.dp_enabled:
+            metrics["epsilon"] = float(epsilon)
         if self.dp_enabled:
             # Unnoised loss/accuracy are private-data queries, not DP outputs.
             metrics.update(noise_multiplier=float(optimizer.noise_multiplier),

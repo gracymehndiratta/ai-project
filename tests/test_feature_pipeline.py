@@ -105,22 +105,27 @@ def test_cache_and_three_models_reload(tmp_path, monkeypatch):
         assert 0 <= metrics["test"]["macro_f05"] <= 1
         assert all("f0.5-score" in metrics["test"]["per_class"][name] for name in CLASS_NAMES)
     assert joblib.load(smote_output / "linear/model.joblib").class_weight is None
-    # Exercise the actual app against all three newly saved artifact formats.
+    # Exercise the current image-checker UI against all three saved artifact formats.
     from streamlit.testing.v1 import AppTest
-    from src.utils.config import load_config
-    root = Path(__file__).resolve().parent.parent
-    config = load_config(str(root / "config.yaml"))
-    config["outputs"]["models_dir"] = str(tmp_path / "legacy_models")
-    monkeypatch.chdir(tmp_path)
-    with patch("src.utils.config.load_config", return_value=config):
-        app = AppTest.from_file(str(root / "scripts/app.py")).run(timeout=60)
-        assert not app.exception, app.exception
-        choices = app.sidebar.selectbox[0].options
-        assert len(choices) == 6 and sum("SMOTE" in name for name in choices) == 3
-        for choice in choices:
-            app.sidebar.selectbox[0].select(choice).run(timeout=60)
-            assert not app.exception, app.exception
-            assert len(app.get("file_uploader")) == 1
+    from src.ui.results import model_name
+    models=[]
+    for base in [output,smote_output]:
+        for kind in ['linear','mlp','xgboost']:
+            folder=base/kind;info=json.loads((folder/'metadata.json').read_text())
+            artifact=folder/({'linear':'model.joblib','mlp':'model.pt','xgboost':'model.ubj'}[kind])
+            models.append({'id':str(artifact),'name':model_name(folder,info),'selection_label':model_name(folder,info),
+                'folder':folder,'artifact_path':artifact,'scaler_path':base/'scaler.joblib','info':info})
+    def render_checker(saved):
+        from src.ui.dashboard import image_checker
+        image_checker(saved,saved)
+    app=AppTest.from_function(render_checker,args=(models,),default_timeout=60).run()
+    assert not app.exception,app.exception
+    choices=app.selectbox(key='prediction_model').options
+    assert len(choices)==6 and sum('SMOTE' in name for name in choices)==3
+    for model in models:
+        app.selectbox(key='prediction_model').set_value(model['id']).run()
+        assert not app.exception,app.exception
+        assert len(app.get('file_uploader'))==1
 
 
 def test_smote_reproducibility_and_f05_definition():

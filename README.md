@@ -229,3 +229,16 @@ lesion classifiers. It reuses frozen image features, tunes neural smoothing per
 lesion on training folds, and saves both binary-specialist and combined seven-class
 statistics alongside every historical baseline. Results are written to
 `outputs/feature_models/efficientnet_b0_specialists/REPORT.md`.
+
+### Classroom federated-learning demonstration
+
+Open the Streamlit app from this worktree. Install the project requirements in a
+Python environment first, then run `python -m streamlit run scripts/app.py` from
+this folder. Open the **Federated learning** tab, then click **Run
+federated demonstration**. The page shows the configured training setup, then
+runs two sequential Flower clients over two FedAvg rounds on randomly generated
+images and displays client sizes, round metrics, and held-out accuracy. Demo
+artifacts are isolated under `artifacts/federated-demo/`. They do not represent
+clinical performance. The quick demonstration does not use differential privacy;
+the separately configured Flower simulation supports it, but is a local research
+simulation rather than a deployed hospital network.

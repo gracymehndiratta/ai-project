@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 import torch
 from src.ui.results import CLASS_LABELS,SPLITS,all_models,top_six,summary,per_class,research,paper_table,adapted_models,local_research,exposure_label,mean_five
+from src.ui.federated import federated_panel
 from src.ui.catalog import saved_models,benchmark_models
 from src.ui.uploads import decode_image
 from src.models.feature_models import build_extractor,load_classifier,classifier_probabilities,MultiViewTransform,extract_multiview
@@ -168,7 +169,7 @@ def main():
     st.sidebar.caption('Top six eligible model families by official-cohort macro F1, with at most two nonlinear neural systems. The four refined Large families use checkpoints selected by the weaker of their HAM/ISIC five-metric gains; other families use their best eligible saved checkpoint. The adapted view uses adapted copies; the authors’ recipe is a separate unchanged reference.')
     st.sidebar.caption('Tests were inspected repeatedly: exploratory comparisons, not a fresh blind benchmark.')
     for column,label,value in zip(st.columns(4),['Compared models','Neural heads','Research papers','Lesion categories'],[6,sum(m['neural'] for m in selected),len(papers),len(CLASS_LABELS)]): column.metric(label,value)
-    tabs=st.tabs(['Our six models','Research papers','Seven lesion types','Image checker','Adaptation history'])
+    tabs=st.tabs(['Our six models','Research papers','Seven lesion types','Image checker','Adaptation history','Federated learning'])
     with tabs[0]:
         st.subheader('Six selected local models')
         st.caption('All six use the same evaluation image IDs. Toggle original checkpoints to compare before and after adaptation. Both former test sets are fitting data for adapted models.')
@@ -217,3 +218,5 @@ def main():
                 'Combined fitting macro F0.5 (%)':fit['macro_f05']*100,'HAM validation macro F1 (%)':validation['macro_f1']*100})
         show_table(pd.DataFrame(rows),'adaptation_history')
         st.caption('Validation was excluded from adaptation, but inspected repeatedly. Official validation contains only one dermatofibroma case.')
+
+    with tabs[5]: federated_panel()
